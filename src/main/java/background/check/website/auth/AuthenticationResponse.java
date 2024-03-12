@@ -1,6 +1,6 @@
 package background.check.website.auth;
 
-import background.check.website.user.User;
+import background.check.website.auth.user.User;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

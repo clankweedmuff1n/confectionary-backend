@@ -1,6 +1,6 @@
 package background.check.website.auth;
 
-import background.check.website.token.TokenRepository;
+import background.check.website.auth.user.token.TokenRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

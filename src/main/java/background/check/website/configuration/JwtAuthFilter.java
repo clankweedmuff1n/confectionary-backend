@@ -1,6 +1,6 @@
 package background.check.website.configuration;
 
-import background.check.website.token.TokenRepository;
+import background.check.website.auth.user.token.TokenRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,20 +16,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 @Component
-@RequiredArgsConstructor // create a constructor using defined final fields
+@RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserDetailsService userDetailsService;
     private final TokenRepository tokenRepository;
-
-    private final List<String> WHITE_LIST = Arrays.asList("register", "authenticate", "refresh-token", "properties");
-    private final List<String> SUPER_WHITE_LIST = Arrays.asList("refresh-token", "confirm");
 
     @Override
     protected void doFilterInternal(
@@ -37,20 +31,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain
     ) throws ServletException, IOException {
-        System.out.println("jwt enter");
-        String[] path = request.getRequestURI().split("/");
-        if ((WHITE_LIST.contains(path[path.length - 1]) && request.getHeader("Authorization") != null) ||
-                ("refresh-token".equals(path[path.length - 1])) || ("confirm".equals(path[path.length - 2]))) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        // get the header containing the bearer token
         final String authHeader = request.getHeader("Authorization");
-        final  String jwtToken;
+        final String jwtToken;
         final String userEmail;
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            System.out.println("inside second if");
             filterChain.doFilter(request, response);
             return;
         }
@@ -75,7 +59,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 authToken.setDetails(
                         new WebAuthenticationDetailsSource().buildDetails(request)
                 );
-                System.out.println("hz");
 
                 SecurityContextHolder.getContext().setAuthentication(authToken);
             }

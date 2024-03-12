@@ -1,29 +1,20 @@
 package background.check.website.auth;
 
-import background.check.website.AdditionalData.AdditionalData;
-import background.check.website.AdditionalData.AdditionalDataRepository;
-import background.check.website.Property.Image;
-import background.check.website.Property.ImageRepository;
-import background.check.website.Property.Property;
-import background.check.website.Property.PropertyRepository;
 import background.check.website.configuration.JwtService;
-import background.check.website.confirmLink.ConfirmLink;
-import background.check.website.confirmLink.ConfirmLinkRepository;
-import background.check.website.squareApi.Money;
-import background.check.website.squareApi.QuickPay;
-import background.check.website.squareApi.SquareRequest;
-import background.check.website.squareApi.SquareResponse;
-import background.check.website.token.Token;
-import background.check.website.token.TokenRepository;
-import background.check.website.token.TokenType;
-import background.check.website.user.User;
-import background.check.website.user.UserRepository;
+import background.check.website.auth.user.confirmLink.ConfirmLink;
+import background.check.website.auth.user.confirmLink.ConfirmLinkRepository;
+import background.check.website.auth.user.resetLink.ResetLink;
+import background.check.website.auth.user.resetLink.ResetLinkRepository;
+import background.check.website.auth.user.token.Token;
+import background.check.website.auth.user.token.TokenRepository;
+import background.check.website.auth.user.token.TokenType;
+import background.check.website.auth.user.User;
+import background.check.website.auth.user.UserRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.*;
+import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -32,27 +23,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
-import static background.check.website.user.Role.USER;
+import static background.check.website.auth.user.Role.USER;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final EmailServiceImpl emailService;
-    private final AdditionalDataRepository dataRepository;
-    private final ConfirmLinkRepository confirmLinkRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final TokenRepository tokenRepository;
-    private final PropertyRepository propertyRepository;
-    private final ImageRepository imageRepository;
+    private final ConfirmLinkRepository confirmLinkRepository;
+    private final ResetLinkRepository resetLinkRepository;
 
 
     private final RestTemplate restTemplate;
@@ -61,8 +48,6 @@ public class AuthService {
         var user = User.builder()
                 .firstname(request.getFirstname())
                 .confirmed(false)
-                .fullRegistered(false)
-                .paid(false)
                 .lastname(request.getLastname())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
@@ -120,69 +105,13 @@ public class AuthService {
                 .build();
     }
 
-    public SquareResponse getPaymentLink() {
-        var request = SquareRequest.builder()
-                .idempotencyKey(UUID.randomUUID().toString())
-                .quickPay(QuickPay.builder()
-                        .name("Background check")
-                        .priceMoney(Money.builder()
-                                .amount(3500L)
-                                .currency("USD")
-                                .build())
-                        .locationId("L4DTQXZHDVWQN")
-                        .build())
-                .build();
-
-        String url = "https://connect.squareup.com/v2/online-checkout/payment-links";
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer EAAAEeRVv92pl-UHgdZKbu0-DecQFDKIUEWeDNTCnKp0j7XNZXUqouPLFkIoM5iU");
-        headers.set("Content-Type", "application/json");
-
-        HttpEntity<SquareRequest> requestEntity = new HttpEntity<>(request, headers);
-
-        ResponseEntity<SquareResponse> response = restTemplate.postForEntity(url, requestEntity, SquareResponse.class);
-        return response.getBody();
-    }
-
     public void confirmAccount(String id) {
-        var link = confirmLinkRepository.findByLink(id)
+        /*var link = confirmLinkRepository.findByLink(id)
                 .orElseThrow(() -> new UsernameNotFoundException("Link not found"));
         var user = userRepository.findByLink(link)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found"));
         user.setConfirmed(true);
-        userRepository.save(user);
-    }
-
-    public User completeRegistration(RegisterCompleteRequest request) {
-        var user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("User not found"));
-        if (user.getFullRegistered()) throw new UsernameNotFoundException("User already registered");
-        dataRepository.findByUser(user).ifPresent((additionalData) -> new UsernameNotFoundException("User already registered"));
-        AdditionalData data = AdditionalData.builder()
-                .firstName(request.getFirstName())
-                .middleName(request.getMiddleName())
-                .lastName(request.getLastName())
-                .email(request.getEmail())
-                .date(request.getDate())
-                .ssn(request.getSsn())
-                .primaryPhone(request.getPrimaryPhone())
-                .alternativePhone(request.getAlternativePhone())
-                .secondAlternativePhone(request.getSecondAlternativePhone())
-                .city(request.getCity())
-                .state(request.getState())
-                .zip(request.getZip())
-                .income(request.getIncome())
-                .incomeType(request.getIncomeType())
-                .otherIncome(request.getOtherIncome())
-                .otherIncomeType(request.getOtherIncomeType())
-                .assets(request.getAssets())
-                .status(request.getStatus())
-                .user(user)
-                .build();
-        dataRepository.save(data);
-        user.setFullRegistered(true);
-        return userRepository.save(user);
+        userRepository.save(user);*/
     }
 
     public AuthenticationResponse authenticate(AuthenticationRequest request) {
@@ -288,20 +217,48 @@ public class AuthService {
         tokenRepository.saveAll(validUserTokens);
     }
 
-    @PostConstruct
-    public void init() {
-        for (int i = 0; i < 200; i++) {
-            Property property = propertyRepository.save(Property.builder()
-                    .price(i * 10)
-                    .address(UUID.randomUUID().toString())
-                    .build());
-            imageRepository.save(Image.builder().url("https://source.unsplash.com/random/200x200?sig=" + i).property(property).build());
-            imageRepository.save(Image.builder().url("https://source.unsplash.com/random/200x200?sig=" + i + 200).property(property).build());
-            System.out.println(property);
-        }
-    }
+    public void sendResetEmail(String emailAddress) {
+        User user = userRepository.findByEmail(emailAddress)
+                .orElseThrow(() -> new UsernameNotFoundException("User by email not found"));
+        var email = """
+                <div style="max-width: 600px;">
+                   <div style="margin: 0 auto;text-align: center;">
+                      <img width="auto" height="auto"
+                         style="margin-top:0;margin-right:0;margin-bottom:32px;margin-left:0px"
+                         src="https://i.imgur.com/gCjUQw7.png"
+                         alt="logo"/>
+                      <h1>Confirm your email address</h1>
+                      <p style="font-size:20px;line-height:28px;letter-spacing:-0.2px;margin-bottom:28px;word-break:break-word">
+                         To reset your password click on the button below
+                      </p>
+                   </div>
+                   <div
+                      style="background:#f5f4f5;border-radius:4px;padding:23px 13px;margin-left:50px;margin-right:50px;margin-bottom:72px;margin-bottom:30px">
+                      <a style="cursor: pointer; user-select: none; text-decoration: none" href="%s">
+                         <div style="color: black; text-align:center;vertical-align:middle;font-size:30px">
+                            Reset Password
+                         </div>
+                      </a>
+                   </div>
+                   <div style="margin-left:50px;margin-right:50px;margin-bottom:72px;margin-bottom:30px">
+                      <p style="font-size:16px;line-height:24px;letter-spacing:-0.2px;margin-bottom:28px"></p>
+                      <p style="font-size:16px;line-height:24px;letter-spacing:-0.2px;margin-bottom:28px">
+                         If you didn’t request this email, there’s nothing to worry about — you
+                         can safely ignore it.
+                      </p>
+                      <div>©2024 EngelRealEstate LLC<br>
+                      </div>
+                      <br>All rights reserved.
+                   </div>
+                </div>
+                """;
+        var link = ResetLink.builder()
+                .link(UUID.randomUUID().toString())
+                .user(user)
+                .build();
+        var savedLink = resetLinkRepository.save(link);
 
-    public List<Property> getProperties() {
-        return propertyRepository.findAll();
+        email = String.format(email, "https://engelrealestate.us/reset/" + savedLink.getLink());
+        emailService.sendSimpleMessage(emailAddress, "Reset your password", email);
     }
 }

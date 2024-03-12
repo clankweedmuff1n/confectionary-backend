@@ -1,6 +1,6 @@
 package background.check.website.configuration;
 
-import background.check.website.user.UserRepository;
+import background.check.website.auth.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
